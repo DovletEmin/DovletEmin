@@ -48,6 +48,6 @@
 
 ---
 
-### ✨ Fun Dev GIF
+### ✨ Codewars Stats
 
-![Codewars](https://www.codewars.com/users/DovletEmin/badges/small)
+![Codewars](https://www.codewars.com/users/DovletEmin/badges/large)
