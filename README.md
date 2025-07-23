@@ -50,6 +50,4 @@
 
 ### ✨ Fun Dev GIF
 
-<div align="center">
-  <img src="https://media.giphy.com/media/qgQUggAC3Pfv687qPC/giphy.gif" width="500" />
-</div>
+![Codewars](https://www.codewars.com/users/DovletEmin/badges/small)
