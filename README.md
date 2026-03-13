@@ -2,7 +2,7 @@
 # 👋 Hi, I'm Dovlet Eminov
 </h1>
 <p align="center">
-  🧑‍💻 <b>Backend & Full‑stack Developer</b> | Python • Go • C# • JavaScript/TypeScript  
+  🧑‍💻 <b>Full‑stack Developer</b> | Python • Go • C# • JavaScript/TypeScript  
   <br>
   From <b>Ashgabat, Turkmenistan</b> 🇹🇲  
   <br>
