@@ -40,3 +40,16 @@ workflow never commits noise.
 
 Both typefaces are under the SIL Open Font License. Edit the strings in a
 script, rerun it, and copy the result over the file in `assets/`.
+
+## If `assets/carpet.svg` conflicts on a pull
+
+The weave workflow commits a rebuilt carpet whenever it runs, so a push of
+your own can land behind it. The file is generated, so never merge it by
+hand. Rerun the generator and commit that:
+
+```bash
+python carpet.py contrib.json ../carpet.svg
+git add ../carpet.svg && git commit
+```
+
+Pulling with `git pull --rebase` before you start work avoids most of it.

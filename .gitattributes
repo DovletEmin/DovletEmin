@@ -1,1 +1,5 @@
 assets/src/* linguist-vendored
+
+# Generated artwork. Collapsed in diffs, and never worth merging by hand:
+# on a conflict just rerun the generator (see assets/src/README.md).
+assets/*.svg linguist-generated
