@@ -30,6 +30,8 @@ Every knot is one day of commits. The dyes run the traditional Turkmen scale, fr
 - Personal, shared and per-project spaces with access control, file versioning, recoverable trash, and an audit log.
 - Real-time chat alongside it: presence, typing indicators, read receipts, message search.
 
+<img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/upload-path.svg" width="100%" alt="How a 100 GB upload moves through Paylas: the browser asks the Go binary to start it, the binary records it in Postgres and opens a presigned multipart upload in MinIO, then the browser sends the parts straight to MinIO and resumes from the last completed part after a dropped connection.">
+
 `Go` &nbsp;`PostgreSQL` &nbsp;`MinIO` &nbsp;`Collabora Online` &nbsp;`Caddy` &nbsp;`Docker`
 
 ### Digital Information System &nbsp;·&nbsp; [monolith](https://github.com/DovletEmin/Digital-Information-System) &nbsp;/&nbsp; [microservices](https://github.com/DovletEmin/Digital-Information-System-Microservices)
