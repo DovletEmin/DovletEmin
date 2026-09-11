@@ -10,6 +10,14 @@ Based in Ashgabat, Turkmenistan. Available for remote work.
 
 ---
 
+## This year, woven
+
+<img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/carpet.svg" width="100%" alt="A year of GitHub contributions woven as a Turkmen carpet. Each knot is one day.">
+
+Every knot is one day of commits. The dyes run the traditional Turkmen scale, from thin madder through saffron to undyed wool, and the four levels are recomputed from my own distribution rather than fixed thresholds. A GitHub Action reweaves it from the live calendar every morning.
+
+---
+
 ## Selected work
 
 ### [Paýlaş](https://github.com/DovletEmin/Paylash_V2) &nbsp;·&nbsp; Go
