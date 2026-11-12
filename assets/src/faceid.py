@@ -130,16 +130,18 @@ def build(theme):
     gh = GR * GS
 
     def grid(gx, cells, t0, label):
+        """Each row appears as the scan passes it: one path per dye per row."""
         out = [k.text(label, gx, HY + gh + 13, 8, c['dim'], track=0.12)]
         for r in range(GR):
-            row = []
+            by = {}
             for col in range(GC):
-                x, y = gx + col * GS, HY + r * GS
                 fill = cells(col, r)
-                row.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="1" fill="%s"/>'
-                           % (x, y, CELL, CELL, fill or c['slot']))
-            out.append(k.show_from(t0 + r * SCAN / GR, ''.join(row), fade=0.08))
-        out.append('<g opacity=".0">%s</g>' % '')
+                if fill:
+                    by.setdefault(fill, []).append('M%.1f %.1fh%.1fv%.1fh-%.1fz'
+                                                   % (gx + col * GS, HY + r * GS, CELL, CELL, CELL))
+            if by:
+                out.append(k.show_from(t0 + r * SCAN / GR, ''.join(
+                    '<path fill="%s" d="%s"/>' % (f, ''.join(d)) for f, d in sorted(by.items())), fade=0.08))
         return ''.join(out)
 
     def photo(col, r):
@@ -150,11 +152,13 @@ def build(theme):
         v = (r - (GR - 1) / 2) / (GR / 2)
         return dye(nearness(u, v))
 
-    # empty slots before the scan
+    # empty slots before the scan, as one pattern per grid
+    k.defs.append('<pattern id="slots" width="%.1f" height="%.1f" patternUnits="userSpaceOnUse">'
+                  '<rect width="%.1f" height="%.1f" rx="1" fill="%s" stroke="%s" stroke-width=".5"/></pattern>'
+                  % (GS, GS, CELL, CELL, c['slot'], c['slot_line']))
     for gx in (gx_photo, gx_face):
-        b.append(''.join('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="1" fill="%s" stroke="%s" stroke-width=".5"/>'
-                         % (gx + col * GS, HY + r * GS, CELL, CELL, c['slot'], c['slot_line'])
-                         for r in range(GR) for col in range(GC)))
+        b.append('<rect x="%.1f" y="%d" width="%.1f" height="%.1f" fill="url(#slots)" '
+                 'style="transform:translate(%.1fpx,%dpx)"/>' % (0, 0, GC * GS, gh, gx, HY))
     b.append(grid(gx_photo, photo, A1 + 1.0, 'PHOTO ON A PHONE'))
     b.append(grid(gx_face, face, A2 + 1.0, 'LIVE FACE'))
     for gx, t0 in ((gx_photo, A1 + 1.0), (gx_face, A2 + 1.0)):
