@@ -46,7 +46,13 @@ One gul for every day, larger and paler the busier it was. It is knotted the way
 - Services talk over HTTP for reads and a message broker for everything asynchronous. Search runs on its own index rather than against the primary database.
 - Building both taught me the real cost of the split, which is the part most architecture discussions skip.
 
-`Go (Gin)` &nbsp;`Python (FastAPI)` &nbsp;`Node.js` &nbsp;`Next.js` &nbsp;`PostgreSQL` &nbsp;`MongoDB` &nbsp;`Elasticsearch` &nbsp;`RabbitMQ` &nbsp;`MinIO`
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/library-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/library-light.svg">
+  <img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/library-light.svg" width="100%" alt="The same dissertation upload runs through a Django monolith and through six services linked by a RabbitMQ event. When one process dies, the monolith loses all five features and the split build loses only uploads. The cost: six deployables instead of one, three languages instead of one, six data stores instead of three.">
+</picture>
+
+`Django` &nbsp;`Go (Gin)` &nbsp;`Python (FastAPI)` &nbsp;`Node.js` &nbsp;`Next.js` &nbsp;`PostgreSQL` &nbsp;`MongoDB` &nbsp;`Elasticsearch` &nbsp;`RabbitMQ` &nbsp;`MinIO`
 
 ### [Presence Service](https://github.com/DovletEmin/Presence-Service) &nbsp;·&nbsp; Python &nbsp;/&nbsp; [Go port](https://github.com/DovletEmin/Presence-Service-GO)
 
@@ -57,6 +63,12 @@ One gul for every day, larger and paler the busier it was. It is knotted the way
 - Fan-out through Redis pub/sub, so the service scales horizontally instead of holding every subscriber in one process.
 - Also written a second time in Go, against the same design, to put the two concurrency models side by side.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/presence-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/presence-light.svg">
+  <img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/presence-light.svg" width="100%" alt="One user on web, mobile and desktop, each sending a heartbeat every 30 seconds. The phone stops without a close frame and is reaped after 60 seconds of silence while the user stays online; when the web tab goes away the status becomes away and one Redis PUBLISH reaches watchers on another instance.">
+</picture>
+
 `FastAPI` &nbsp;`WebSocket` &nbsp;`Redis` &nbsp;`Go`
 
 ### [Face ID](https://github.com/DovletEmin/Face-ID_Microservice) &nbsp;·&nbsp; Python
@@ -66,7 +78,13 @@ One gul for every day, larger and paler the busier it was. It is knotted the way
 - Built on an Intel RealSense D415, using the depth stream to confirm it is looking at a face and not a flat image of one.
 - Split into a FastAPI gateway and a recognition service, with a React front end talking over HTTP and WebSocket.
 
-`Python` &nbsp;`FastAPI` &nbsp;`OpenCV` &nbsp;`Intel RealSense` &nbsp;`React` &nbsp;`TypeScript`
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/faceid-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/faceid-light.svg">
+  <img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/faceid-light.svg" width="100%" alt="Two logins on a RealSense D415. A photo on a phone gives one flat depth plane and fails the 3D check. The real face passes all four depth checks, ArcFace makes a 512-number embedding, pgvector finds it above the 0.60 cosine threshold, and a JWT is issued.">
+</picture>
+
+`Python` &nbsp;`FastAPI` &nbsp;`OpenCV` &nbsp;`Intel RealSense` &nbsp;`InsightFace` &nbsp;`pgvector` &nbsp;`React` &nbsp;`TypeScript`
 
 ### [MirasCloud v2](https://github.com/DovletEmin/MirasCloud-v2) &nbsp;·&nbsp; Go
 
