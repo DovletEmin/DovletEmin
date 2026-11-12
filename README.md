@@ -12,9 +12,9 @@ Based in Ashgabat, Turkmenistan. Available for remote work.
 
 ## This year, woven
 
-<img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/carpet.svg" width="100%" alt="A year of GitHub contributions woven as a Turkmen carpet. Each knot is one day.">
+<img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/carpet.svg" width="100%" alt="A year of GitHub contributions woven as a Tekke Turkmen carpet. Each gul is one day; the busier the day, the larger and paler the gul.">
 
-Every knot is one day of commits. The dyes run the traditional Turkmen scale, from thin madder through saffron to undyed wool, and the four levels are recomputed from my own distribution rather than fixed thresholds. A GitHub Action reweaves it from the live calendar every morning.
+One gul for every day, larger and paler the busier it was. It is knotted the way a Tekke rug is: guls on a real knot lattice, three guard stripes, the main border, elem skirts, flat-woven kilim ends, a knotted fringe. The wool, the colour bleeding between knots and the abrash bands of each new dye lot are all SVG filters, not photographs. It is rewoven from the live calendar every morning by [Haly](https://github.com/DovletEmin/haly), a GitHub Action you can point at your own profile.
 
 ---
 

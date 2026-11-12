@@ -7,7 +7,7 @@ installed fonts.
 | Script | Produces | Notes |
 |:--|:--|:--|
 | `banner.py` | `header-dark.svg`, `header-light.svg` | Profile header. The lattice is an abstracted Turkmen gul that doubles as a network topology. |
-| `carpet.py` | `carpet.svg` | The contribution year woven as a carpet. Drawn on a real knot lattice, so motifs step the way a weave forces them to. Rebuilt daily by the weave workflow. |
+| `carpet.py` | `carpet.svg` | The contribution year woven as a Tekke carpet: field, guards, border, elem, kilim, fringe, with wool pile and abrash done in SVG filters. Rebuilt daily by the weave workflow. Also published as the [Haly](https://github.com/DovletEmin/haly) action. |
 | `flow.py` | `upload-path.svg` | Animated walkthrough of the Paylas upload path. |
 
 ## Running them
