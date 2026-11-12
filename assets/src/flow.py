@@ -393,7 +393,7 @@ def build(theme):
         (DONE, RESET0, 'MinIO stitches 200 parts into one 100 GB object. The app server carried none of it.'),
     ]
     for i, (a, b, s) in enumerate(caps):
-        css.append(gate('gC%d' % i, [(a, b)], fade=0.2))
+        css.append(gate('gC%d' % i, [(a + 0.15, b - 0.15)], fade=0.15))
         last = i == len(caps) - 1
         body.append('<g class="a%s" style="animation:gC%d %ss linear infinite">%s%s</g>' % (
             '' if last else ' t', i, D, text('0%d' % (i + 1), 48, 586, 11, c['madder']),

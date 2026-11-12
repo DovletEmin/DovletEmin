@@ -74,6 +74,10 @@ class Card:
     def show(self, windows, inner, transient=True, fade=0.2):
         return self.anim(self.gate(windows, fade), inner, transient)
 
+    def handover(self, a, b, inner, transient=True, fade=0.14):
+        """Shown from a to b; fades in after a and out before b, so neighbours never overlap."""
+        return self.show([(a + fade, b - fade)], inner, transient, fade)
+
     def show_from(self, on, inner, transient=False, fade=0.15):
         return self.anim(self.keep(on, fade), inner, transient)
 
@@ -234,8 +238,8 @@ class Card:
         out = [self.text(label, x, y - 38, 9, c['muted'], track=0.16)]
         for a, b, s, tone in states:
             last = b >= self.reset0
-            out.append(self.show([(a, b)], self.text(s, x, y, size, c[tone] if tone else c['text'], DISP, 0.04),
-                                 transient=not last, fade=0.12))
+            out.append(self.handover(a, b, self.text(s, x, y, size, c[tone] if tone else c['text'], DISP, 0.04),
+                                     transient=not last))
         return ''.join(out)
 
     # ---- the woven texture ---------------------------------------------------
@@ -274,7 +278,7 @@ class Card:
         for i, (a, b, s) in enumerate(caps):
             last = i == len(caps) - 1
             inner = self.text('0%d' % (i + 1), 48, 586, 11, c['madder']) + self.text(s, 80, 586, 15, c['text'], BODY, 0)
-            self.body.append(self.show([(a, b)], inner, transient=not last))
+            self.body.append(self.handover(a, b, inner, transient=not last))
         self.body.append(self.rule(608, op='.18'))
         for t, s, alarm in marks:
             x = 48 + t / self.D * 952
