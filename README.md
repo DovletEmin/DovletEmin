@@ -30,7 +30,11 @@ One gul for every day, larger and paler the busier it was. It is knotted the way
 - Personal, shared and per-project spaces with access control, file versioning, recoverable trash, and an audit log.
 - Real-time chat alongside it: presence, typing indicators, read receipts, message search.
 
-<img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/upload-path.svg" width="100%" alt="How a 100 GB upload moves through Paylas: the browser asks the Go binary to start it, the binary records it in Postgres and opens a presigned multipart upload in MinIO, then the browser sends the parts straight to MinIO and resumes from the last completed part after a dropped connection.">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/upload-path-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/upload-path-light.svg">
+  <img src="https://raw.githubusercontent.com/DovletEmin/DovletEmin/main/assets/upload-path-light.svg" width="100%" alt="How a 100 GB upload moves through Paylas. The browser asks the Go binary to start it; the binary records it in Postgres and opens a presigned multipart upload in MinIO. The browser sends 200 parts straight to MinIO, each woven into a runner as it lands. The network drops after part 76; the browser asks which parts landed and resumes at part 77, so nothing restarts and no byte passes through the app server.">
+</picture>
 
 `Go` &nbsp;`PostgreSQL` &nbsp;`MinIO` &nbsp;`Collabora Online` &nbsp;`Caddy` &nbsp;`Docker`
 

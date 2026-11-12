@@ -7,7 +7,7 @@ installed fonts.
 | Script | Produces | Notes |
 |:--|:--|:--|
 | `banner.py` | `header-dark.svg`, `header-light.svg` | Profile header. The lattice is an abstracted Turkmen gul that doubles as a network topology. |
-| `flow.py` | `upload-path.svg` | Animated walkthrough of the Paylas upload path. |
+| `flow.py` | `upload-path-dark.svg`, `upload-path-light.svg` | The Paylas upload path: 200 parts woven into a runner as they land in MinIO, the drop at part 77, the resume, a live S3 log and odometer counters. |
 
 `carpet.svg` is not built here. The weave workflow rebuilds it every morning
 with [Haly](https://github.com/DovletEmin/haly), the action this carpet grew
@@ -24,7 +24,7 @@ curl -sSLo IBMPlexMono-Medium.ttf 'https://raw.githubusercontent.com/google/font
 cd ..
 
 python banner.py                       # -> out/header-{dark,light}.svg
-python flow.py                         # -> out/upload-path.svg
+python flow.py                         # -> out/upload-path-{dark,light}.svg
 ```
 
 Both typefaces are under the SIL Open Font License. Edit the strings in a

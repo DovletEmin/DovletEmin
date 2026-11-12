@@ -1,238 +1,436 @@
 # -*- coding: utf-8 -*-
-"""An animated walkthrough of the upload path in Paylas.
+"""How a 100 GB upload moves through Paylas, woven as it lands.
 
-Every claim comes from the project's own README: presigned multipart straight
-to MinIO, the browser reaching MinIO's S3 port directly so the app server never
-carries the bytes, and a transfer that survives a dropped connection. Text is
-outlined, so the diagram depends on no installed fonts.
+The file goes up as 200 presigned multipart parts, straight from the browser
+to MinIO, and each part that lands is knotted into a runner, so the upload
+is woven the same way the contribution carpet above it is. The network drops
+at part 77; the browser asks which parts landed, MinIO says 76, and the
+weave picks up at 77 instead of starting over. When the last part lands the
+runner shows the whole gul pattern.
+
+Around it: the control path (one Go binary, never in the data path), the S3
+calls as they happen, and four counters, one of which never leaves zero.
+
+Every claim comes from the project's own README. All text is outlined, so
+nothing depends on installed fonts. Writes a dark and a light version.
 """
 import typeset as T
 
 FONTS = 'fonts/'
-DISP = T.load(FONTS + 'Archivo-var.ttf', wght=700, wdth=112)
+DISP = T.load(FONTS + 'Archivo-var.ttf', wght=760, wdth=115)
 BODY = T.load(FONTS + 'Archivo-var.ttf', wght=450, wdth=100)
 MONO = T.load(FONTS + 'IBMPlexMono-Medium.ttf')
 
-NAME = 'PAÝLAŞ'          # PAYLAS in Turkmen orthography
+NAME = 'PAÝLAŞ'
 
-INK = '#141110'
-SURF = '#1E1917'
-BONE = '#EAE3D9'
-TAUPE = '#8C8175'
-DIM = '#5B534B'
-MADDER = '#C9452E'
-VERD = '#6E9B8A'
+THEMES = {
+    'dark': dict(ink='#141110', surf='#1C1715', text='#EAE3D9', muted='#8C8175',
+                 dim='#5B534B', rule='#EAE3D9', madder='#D04B33', verd='#7FAE9B',
+                 slot='#221C19', slot_line='#3A322D'),
+    'light': dict(ink='#F1EBE2', surf='#E8E0D3', text='#191411', muted='#6E6459',
+                  dim='#A39888', rule='#191411', madder='#B33A24', verd='#3F7360',
+                  slot='#E4DBCD', slot_line='#CFC4B4'),
+}
 
-W, H = 1040, 470
-D = 22.0                            # one full pass of the story
+# carpet dyes: a rug is the same colour whatever the theme
+RED, RED2, LAT = '#7B2521', '#71231F', '#4F181B'
+IVORY, SAFFRON, ORANGE, INDIGO = '#E3D5B8', '#C58C3D', '#B4432B', '#1C2231'
+
+W, H = 1040, 640
+D = 24.0                                  # one pass of the story, seconds
+PARTS, LOST_AT = 200, 76                  # the drop comes after part 76
+P1, P2 = (4.0, 11.0), (15.0, 21.0)        # the two streaming phases
+DROP, LIST, DONE = 11.0, 13.2, 21.2
+RESET0, RESET1 = 23.3, 23.85
+
+COLS, ROWS = 40, 5                        # the runner, one cell per part
+STEP, CELL = 23.8, 22.4
+GX, GY = 48 + (952 - (COLS * STEP - (STEP - CELL))) / 2, 436
 
 
+# --- time ---------------------------------------------------------------------
 def pct(t):
-    return '%.2f%%' % (t / D * 100.0)
+    return '%.3f%%' % (max(0.0, min(D, t)) / D * 100.0)
 
 
-def gate(name, windows, fade=0.28):
-    """Opacity keyframes that switch a group on during each window."""
+def gate(name, windows, fade=0.25, peak=1):
     marks = [(0.0, 0)]
     for a, b in windows:
-        marks += [(max(0.01, a - fade), 0), (a, 1), (b, 1), (min(D - 0.01, b + fade), 0)]
+        marks += [(max(0.001, a - fade), 0), (a, peak), (b, peak), (min(D - 0.001, b + fade), 0)]
     marks.append((D, 0))
     marks.sort(key=lambda m: m[0])
-    return '@keyframes %s{%s}' % (
-        name, ' '.join('%s{opacity:%d}' % (pct(t), v) for t, v in marks))
+    return '@keyframes %s{%s}' % (name, ''.join('%s{opacity:%s}' % (pct(t), v) for t, v in marks))
 
 
-def seglens(pts):
-    return [abs(b[0] - a[0]) + abs(b[1] - a[1]) for a, b in zip(pts, pts[1:])]
+def keep(name, on, fade=0.2):
+    """Visible from `on` until the loop resets."""
+    return gate(name, [(on, RESET0)], fade)
 
 
-def travel(name, pts):
-    """Move a packet along an orthogonal polyline, timed by segment length."""
-    lens = seglens(pts)
-    total = sum(lens) or 1.0
-    marks, acc = [], 0.0
+def t_part(n):
+    if n <= LOST_AT:
+        return P1[0] + n * (P1[1] - P1[0]) / LOST_AT
+    return P2[0] + (n - LOST_AT) * (P2[1] - P2[0]) / (PARTS - LOST_AT)
+
+
+def travel(name, pts, extra=''):
+    lens = [abs(b[0] - a[0]) + abs(b[1] - a[1]) for a, b in zip(pts, pts[1:])]
+    total, acc, marks = sum(lens) or 1.0, 0.0, []
     for i, (x, y) in enumerate(pts):
         marks.append((acc / total * 100.0, x, y))
         if i < len(lens):
             acc += lens[i]
-    return '@keyframes %s{%s}' % (name, ' '.join(
-        '%.2f%%{transform:translate(%.1fpx,%.1fpx)}' % m for m in marks))
+    return '@keyframes %s{%s}' % (name, ''.join(
+        '%.2f%%{transform:translate(%.1fpx,%.1fpx)%s}' % (m + (extra,)) for m in marks))
 
 
-def point_at(pts, frac):
-    """Where along the polyline a given fraction of the length falls."""
-    lens = seglens(pts)
-    want = sum(lens) * frac
-    for (x1, y1), (x2, y2), L in zip(pts, pts[1:], lens):
-        if want <= L:
-            k = want / L if L else 0
-            return x1 + (x2 - x1) * k, y1 + (y2 - y1) * k
-        want -= L
-    return pts[-1]
+# --- type ---------------------------------------------------------------------
+# Each glyph is outlined once into <defs> and placed with <use>, which keeps the
+# file a fraction of the size of outlining every string separately.
+GLYPHS = {}
+FONT_IDS = {}
 
 
-def edge_path(pts):
-    return 'M' + ' L'.join('%.1f,%.1f' % p for p in pts)
+def glyph(font, size, ch):
+    key = (id(font), size, ch)
+    if key not in GLYPHS:
+        d, adv = T.typeset(font, ch, size, 0, 0)
+        fid = FONT_IDS.setdefault(id(font), 'abcdefgh'[len(FONT_IDS)])
+        GLYPHS[key] = ('%s%d' % (fid, len(GLYPHS)), d, adv)
+    return GLYPHS[key]
 
 
-def node(x, y, w, h, name, sub, accent=False):
-    _, nw = T.typeset(DISP, name, 17, 0, 0, tracking=0.05)
-    _, sw = T.typeset(MONO, sub, 10, 0, 0, tracking=0.12)
-    nd, _ = T.typeset(DISP, name, 17, x + (w - nw) / 2, y + h / 2 - 3, tracking=0.05)
-    sd, _ = T.typeset(MONO, sub, 10, x + (w - sw) / 2, y + h / 2 + 19, tracking=0.12)
-    return ('<rect x="%d" y="%d" width="%d" height="%d" rx="2" fill="%s" stroke="%s" '
-            'stroke-opacity="%s"/><path d="%s" fill="%s"/><path d="%s" fill="%s"/>'
-            % (x, y, w, h, SURF, MADDER if accent else BONE,
-               '.55' if accent else '.20', nd, BONE, sd, TAUPE))
+def width(s, size, font=MONO, track=0.12):
+    return sum(glyph(font, size, ch)[2] for ch in s) + track * size * (len(s) - 1)
 
 
-def label(text, x, y, size=10.5, col=None, anchor='start'):
-    _, w = T.typeset(MONO, text, size, 0, 0, tracking=0.12)
+def text(s, x, y, size, col, font=MONO, track=0.12, anchor='start'):
+    w = width(s, size, font, track)
     if anchor == 'end':
         x -= w
     elif anchor == 'middle':
         x -= w / 2
-    d, _ = T.typeset(MONO, text, size, x, y, tracking=0.12)
-    return '<path d="%s" fill="%s"/>' % (d, col or TAUPE)
+    out, pen = [], x
+    for ch in s:
+        gid, d, adv = glyph(font, size, ch)
+        if d:
+            out.append('<use href="#%s" x="%.1f"/>' % (gid, pen))
+        pen += adv + track * size
+    return '<g fill="%s" transform="translate(0 %.1f)">%s</g>' % (col, y, ''.join(out))
 
 
-def packets(anim, dur, n=3, col=None, size=7):
-    return ''.join(
-        '<rect class="pkt" x="%.1f" y="%.1f" width="%d" height="%d" rx="1" fill="%s" '
-        'style="animation-name:%s;animation-duration:%ss;animation-delay:-%.2fs"/>'
-        % (-size / 2., -size / 2., size, size, col or MADDER, anim, dur, i * dur / n)
-        for i in range(n))
+def glyph_defs():
+    return ''.join('<path id="%s" d="%s"/>' % (gid, d) for gid, d, _ in GLYPHS.values() if d)
 
 
-def build():
-    BR, PA = (48, 150, 160, 88), (386, 150, 230, 88)
-    PG, MI = (824, 66, 176, 76), (824, 246, 176, 76)
-    TRACK_Y, TRACK_X0, TRACK_X1 = 396, 128, 912
+# --- the runner -----------------------------------------------------------------
+def motif(col, row):
+    """Small Tekke guls, five knots high, with a minor gul between each pair."""
+    g, c = col // 8, col % 8
+    dx, dy = c - 4, row - 2
+    if abs(dx) <= 2 and abs(dy) <= 2 and abs(dx) + abs(dy) <= 3:     # the gul, an octagon
+        if max(abs(dx), abs(dy)) == 2:
+            return LAT                    # a dark madder outline keeps the red ground in charge
+        if dx == 0 and dy == 0:
+            return INDIGO
+        if dx == 0 or dy == 0:
+            return IVORY                  # the gul quartered by a pale cross
+        a, b = (SAFFRON, ORANGE) if g % 2 == 0 else (ORANGE, SAFFRON)
+        return a if dx * dy > 0 else b    # opposite quarters share a dye
+    dc = min(c, 8 - c)
+    if dc + abs(dy) == 0:
+        return IVORY                      # the minor gul
+    if dc + abs(dy) == 1:
+        return INDIGO
+    return RED if (col // 3) % 2 == 0 else RED2   # a hint of abrash
 
-    e1 = [(208, 194), (386, 194)]
-    e1b = [(386, 208), (208, 208)]
-    e2 = [(616, 176), (690, 176), (690, 104), (824, 104)]
-    e3 = [(616, 212), (690, 212), (690, 284), (824, 284)]
-    e4 = [(128, 238), (128, TRACK_Y), (TRACK_X1, TRACK_Y), (TRACK_X1, 334)]
-    STALL = 0.38
 
-    css = [gate('gAsk', [(0.3, 3.0), (14.9, 17.4)]),
-           gate('gRep', [(1.4, 3.1)]),
-           gate('gMeta', [(3.4, 6.2)]),
-           gate('gPre', [(3.4, 6.2)]),
-           gate('gData', [(6.6, 12.0), (17.8, 21.4)]),
-           gate('gBreak', [(12.2, 14.6)]),
-           gate('gDone', [(20.4, 21.9)])]
-    for i, (a, b) in enumerate([(0.2, 3.2), (3.2, 6.4), (6.4, 12.2),
-                                (12.2, 14.8), (14.8, 17.6), (17.6, 21.8)]):
-        css.append(gate('gCap%d' % (i + 1), [(a, b)], fade=0.22))
-        css.append(gate('gPip%d' % (i + 1), [(a, D - 0.02)], fade=0.18))
-    for nm, pts in (('tAsk', e1), ('tRep', e1b), ('tMeta', e2), ('tPre', e3), ('tData', e4)):
-        css.append(travel(nm, pts))
+def cell_xy(n):
+    i = n - 1
+    return GX + (i // ROWS) * STEP, GY + (i % ROWS) * STEP
 
-    # the data path doubles as the progress bar: it fills as parts land,
-    # stalls through the drop, then completes
-    css.append('@keyframes fill{0%%{stroke-dashoffset:1000}%s{stroke-dashoffset:1000}'
-               '%s{stroke-dashoffset:%d}%s{stroke-dashoffset:%d}'
-               '%s{stroke-dashoffset:0}100%%{stroke-dashoffset:0}}'
-               % (pct(6.4), pct(12.0), round(1000 * (1 - STALL)),
-                  pct(17.8), round(1000 * (1 - STALL)), pct(21.4)))
-    css.append('.pkt{animation-timing-function:linear;animation-iteration-count:infinite}')
-    css.append('.g{animation-duration:%ss;animation-iteration-count:infinite;'
-               'animation-timing-function:linear;opacity:0}' % D)
-    css.append('#fill{animation:fill %ss linear infinite}' % D)
-    css.append('@media (prefers-reduced-motion:reduce){.g,#fill{animation:none}'
-               '.g{opacity:1}.pkt,#brk,#done{display:none}'
-               '.cap{display:none}#capKey{display:block}'
-               '#fill{stroke-dashoffset:0;stroke-opacity:.5}}')
 
-    title, _ = T.typeset(MONO, NAME + '   ·   HOW A 100 GB UPLOAD ACTUALLY MOVES',
-                         12, 48, 40, tracking=0.17)
-    edges = ''.join('<path d="%s" fill="none" stroke="%s" stroke-opacity=".28" '
-                    'stroke-width="1"/>' % (edge_path(p), BONE) for p in (e1, e2, e3))
+def build(theme):
+    c = THEMES[theme]
+    css, body = [], []
+    GLYPHS.clear()
 
-    caps = ['The browser asks %s to start a 100 GB upload.' % NAME.title(),
-            '%s records it in Postgres, opens a multipart upload in MinIO, and hands back '
-            'presigned part URLs.' % NAME.title(),
-            'Parts go straight from the browser to MinIO on :9000. The Go binary never '
-            'carries a byte.',
-            'The connection drops after part 76 of 200.',
-            'The browser asks which parts already landed, then resumes at 77.',
-            'Stored. One binary in the control path, and none of it in the data path.']
-    cap_g = ''.join(
-        '<g class="g cap"%s style="animation-name:gCap%d"><path d="%s" fill="%s"/>'
-        '<path d="%s" fill="%s"/></g>'
-        % (' id="capKey"' if i == 2 else '', i + 1,
-           T.typeset(MONO, '0%d' % (i + 1), 11, 48, 446, tracking=0.12)[0], MADDER,
-           T.typeset(BODY, t, 15, 78, 446)[0], BONE)
-        for i, t in enumerate(caps))
+    # ---- header
+    body.append(text(NAME, 48, 54, 26, c['text'], DISP, 0.04))
+    nw = width(NAME, 26, DISP, 0.04)
+    body.append(text('HOW A 100 GB UPLOAD SURVIVES A DROPPED CONNECTION', 48 + nw + 22, 53,
+                     11, c['muted'], track=0.16))
+    body.append(text('GO  ·  POSTGRES  ·  MINIO', 1000, 53, 10, c['dim'], track=0.16, anchor='end'))
+    body.append('<line x1="48" y1="76" x2="1000" y2="76" stroke="%s" stroke-opacity=".12"/>' % c['rule'])
 
-    pips = ''
-    for i in range(6):
-        x = 906 + i * 15
-        dia = 'M%d,441 L%d,446 L%d,451 L%d,446 Z' % (x, x + 5, x, x - 5)
-        pips += ('<path d="%s" fill="%s" opacity=".20"/>'
-                 '<g class="g" style="animation-name:gPip%d"><path d="%s" fill="%s"/></g>'
-                 % (dia, BONE, i + 1, dia, MADDER))
+    # ---- the diagram
+    def node(x, y, w, h, name, sub, accent=False):
+        out = ['<rect x="%d" y="%d" width="%d" height="%d" rx="3" fill="%s" stroke="%s" stroke-opacity="%s"/>'
+               % (x, y, w, h, c['surf'], c['madder'] if accent else c['rule'], '.7' if accent else '.16')]
+        if accent:
+            out.append('<rect x="%d" y="%d" width="%d" height="3" rx="1.5" fill="%s"/>' % (x, y, w, c['madder']))
+        out.append(text(name, x + w / 2, y + h / 2 + 1, 15, c['text'], DISP, 0.05, 'middle'))
+        out.append(text(sub, x + w / 2, y + h / 2 + 20, 9.5, c['muted'], anchor='middle'))
+        return ''.join(out)
 
-    bx, by = point_at(e4, STALL)
+    BR, PA, PG, MI = (48, 226, 128, 76), (268, 104, 164, 70), (512, 104, 128, 70), (512, 226, 128, 76)
+    e_post = [(112, 226), (112, 139), (268, 139)]
+    e_urls = [(268, 155), (128, 155), (128, 226)]
+    e_db = [(432, 139), (512, 139)]
+    e_s3 = [(412, 174), (412, 200), (576, 200), (576, 226)]
+    e_s3_back = list(reversed(e_s3))
+    band = [(176, 264), (512, 264)]
 
-    return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="How a 100 GB upload moves through Paylas. The browser asks the Go binary to start it; the binary records it in Postgres and opens a presigned multipart upload in MinIO; the browser then sends the parts straight to MinIO, and after a dropped connection it resumes from the last completed part.">
-  <style>{css}</style>
-  <rect width="{W}" height="{H}" fill="{INK}"/>
-  <path d="{title}" fill="{BONE}"/>{tag}
-  <line x1="48" y1="58" x2="1000" y2="58" stroke="{BONE}" stroke-opacity=".12"/>
+    def line(pts, dash=False, op='.28'):
+        return ('<path d="M%s" fill="none" stroke="%s" stroke-opacity="%s" stroke-width="1"%s/>'
+                % (' L'.join('%d,%d' % p for p in pts), c['rule'], op,
+                   ' stroke-dasharray="3 3"' if dash else ''))
 
-  {edges}
-  <path d="{e1b}" fill="none" stroke="{BONE}" stroke-opacity=".15" stroke-width="1" stroke-dasharray="3 3"/>
-  {l_ask}{l_rep}{l_meta}{l_pre}{l_data}
+    body += [line(e_post), line(e_urls, True, '.18'), line(e_db), line(e_s3)]
+    # the data path: thick, and nowhere near the Go binary
+    body.append('<line x1="176" y1="264" x2="512" y2="264" stroke="%s" stroke-width="12" '
+                'stroke-linecap="butt"/>' % c['slot_line'])
+    css.append(gate('gFlow', [P1, P2], fade=0.15, peak=.35))
+    body.append('<line x1="176" y1="264" x2="512" y2="264" stroke="%s" stroke-width="12" class="a t" '
+                'style="animation:gFlow %ss linear infinite"/>' % (c['madder'], D))
+    body.append('<line x1="176" y1="264" x2="512" y2="264" stroke="%s" stroke-opacity=".10"/>' % c['rule'])
+    body.append(text('POST /api/uploads', 124, 131, 9.5, c['muted']))
+    body.append(text('presigned urls', 140, 170, 9, c['dim']))
+    body.append(text('INSERT', 472, 131, 9.5, c['muted'], anchor='middle'))
+    body.append(text('CreateMultipartUpload', 424, 194, 9.5, c['muted']))
+    body.append(text('PUT part  ·  presigned  ·  straight to :9000', 344, 251, 9.5, c['text'], anchor='middle'))
+    body.append(text('the go binary never carries a byte', 344, 304, 9.5, c['muted'], anchor='middle'))
+    body += [node(*BR, 'BROWSER', 'plain js'), node(*PA, NAME, 'one go binary', True),
+             node(*PG, 'POSTGRES', 'metadata'), node(*MI, 'MINIO', 's3 multipart')]
 
-  <path d="{e4}" fill="none" stroke="{BONE}" stroke-opacity=".13" stroke-width="6" stroke-linejoin="round"/>
-  <path id="fill" d="{e4}" pathLength="1000" stroke-dasharray="1000 1000" stroke-dashoffset="1000"
-        fill="none" stroke="{MADDER}" stroke-opacity=".5" stroke-width="6" stroke-linejoin="round"/>
+    # packets on the control path
+    def pkt(anim, window, pts, n=1, dur=0.8, size=6, col=None):
+        css.append(travel(anim, pts))
+        css.append(gate(anim + 'G', [window], fade=0.12))
+        return ''.join(
+            '<g class="a t" style="animation:%sG %ss linear infinite">'
+            '<rect x="%.1f" y="%.1f" width="%d" height="%d" rx="1" fill="%s" class="a" '
+            'style="animation:%s %ss linear infinite;animation-delay:-%.2fs"/></g>'
+            % (anim, D, -size / 2, -size / 2, size, size, col or c['madder'], anim, dur, i * dur / n)
+            for i in range(n))
 
-  {nodes}
+    body.append(pkt('kPost', (0.4, 1.3), e_post, dur=0.9))
+    body.append(pkt('kDb', (1.4, 2.0), e_db, dur=0.6))
+    body.append(pkt('kCmu', (2.1, 2.8), e_s3, dur=0.7))
+    body.append(pkt('kUrl', (2.9, 3.7), e_urls, dur=0.8, col=c['dim']))
+    body.append(pkt('kAsk', (LIST, LIST + 0.6), e_post, dur=0.6))
+    body.append(pkt('kList', (LIST + 0.6, LIST + 1.2), e_s3, dur=0.6))
+    body.append(pkt('kListB', (LIST + 1.2, LIST + 1.8), e_s3_back, dur=0.6, col=c['verd']))
+    body.append(pkt('kDone', (DONE, DONE + 0.6), e_s3, dur=0.6))
+    # parts on the data path, in the colours they will be woven in
+    css.append(travel('kData', band))
+    css.append(gate('kDataG', [P1, P2], fade=0.1))
+    body.append('<g class="a t" style="animation:kDataG %ss linear infinite">%s</g>' % (D, ''.join(
+        '<rect x="-4" y="-4" width="8" height="8" rx="1" fill="%s" class="a" '
+        'style="animation:kData .9s linear infinite;animation-delay:-%.2fs"/>'
+        % ((IVORY, SAFFRON, ORANGE)[i % 3], i * 0.15) for i in range(6))))
 
-  <g class="g" style="animation-name:gAsk">{p_ask}</g>
-  <g class="g" style="animation-name:gRep">{p_rep}</g>
-  <g class="g" style="animation-name:gMeta">{p_meta}</g>
-  <g class="g" style="animation-name:gPre">{p_pre}</g>
-  <g class="g" style="animation-name:gData">{p_data}</g>
+    # the drop
+    css.append(gate('gDrop', [(DROP, LIST)], fade=0.1))
+    css.append('@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.25}}')
+    body.append(
+        '<g class="a t" style="animation:gDrop %ss linear infinite">'
+        '<rect x="330" y="252" width="28" height="24" fill="%s"/>'
+        '<path d="M337,257 L351,271 M351,257 L337,271" stroke="%s" stroke-width="2.6" stroke-linecap="round"/>'
+        '<g class="a" style="animation:blink .8s steps(1) infinite">%s</g></g>'
+        % (D, c['ink'], c['madder'],
+           text('offline · retrying', 112, 322, 9.5, c['madder'], anchor='middle')))
 
-  <g id="brk" class="g" style="animation-name:gBreak">
-    <line x1="{bx1:.1f}" y1="{by1:.1f}" x2="{bx2:.1f}" y2="{by2:.1f}" stroke="{MADDER}" stroke-width="2.5"/>
-    <line x1="{bx1:.1f}" y1="{by2:.1f}" x2="{bx2:.1f}" y2="{by1:.1f}" stroke="{MADDER}" stroke-width="2.5"/>
-    {l_brk}
-  </g>
-  <g id="done" class="g" style="animation-name:gDone">{l_done}</g>
+    # ---- the log
+    body.append('<rect x="672" y="104" width="328" height="198" rx="3" fill="%s" stroke="%s" '
+                'stroke-opacity=".16"/>' % (c['surf'], c['rule']))
+    body.append(text('LOG', 688, 124, 9, c['dim'], track=0.2))
+    log = [
+        (0.4, 'web→go', 'POST /api/uploads', '201', None),
+        (1.5, 'go→pg', 'INSERT upload, 100 GB', 'ok', None),
+        (2.2, 'go→s3', 'CreateMultipartUpload', 'ok', None),
+        (3.0, 'go→web', 'presigned part urls', '200', None),
+        (P1[0], 'web→s3', 'PUT part 1 … 76', '', None),
+        (DROP, 'web', 'network lost at part 77', '×', 'madder'),
+        (LIST + 0.6, 'go→s3', 'ListParts', '76 found', 'verd'),
+        (P2[0], 'web→s3', 'PUT part 77 … 200', '', None),
+        (DONE, 'go→s3', 'CompleteMultipartUpload', '✓', 'verd'),
+    ]
+    for i, (t, who, what, res, tone) in enumerate(log):
+        y = 146 + i * 18
+        col = c[tone] if tone else c['text']
+        css.append(keep('gL%d' % i, t))
+        res_t = {4: P1[1], 7: P2[1]}.get(i)
+        line_svg = text(who, 688, y, 9, c['dim'], track=0.06) + text(what, 742, y, 9.5, col, track=0.06)
+        if res:
+            line_svg += text(res, 986, y, 9.5, col, track=0.06, anchor='end')
+        body.append('<g class="a" style="animation:gL%d %ss linear infinite">%s</g>' % (i, D, line_svg))
+        if res_t:                                    # streaming lines report when they finish
+            css.append(keep('gR%d' % i, res_t))
+            body.append('<g class="a" style="animation:gR%d %ss linear infinite">%s</g>' % (
+                i, D, text('76/200' if i == 4 else '200/200', 986, y, 9.5, c['muted'], track=0.06, anchor='end')))
 
-  {caps}{pips}
-</svg>
-'''.format(
-        W=W, H=H, INK=INK, BONE=BONE, MADDER=MADDER, css=''.join(css), title=title,
-        tag=label('RESUMABLE  ·  PRESIGNED MULTIPART  ·  NO PROXY IN THE DATA PATH',
-                  1000, 40, 10, DIM, 'end'),
-        edges=edges, e1b=edge_path(e1b), e4=edge_path(e4),
-        l_ask=label('1  start an upload', 297, 184, 10.5, TAUPE, 'middle'),
-        l_rep=label('presigned part urls', 297, 226, 9.5, DIM, 'middle'),
-        l_meta=label('2  record it', 757, 96, 10.5, TAUPE, 'middle'),
-        l_pre=label('3  presign parts', 757, 276, 10.5, TAUPE, 'middle'),
-        l_data=label('4  parts go direct to :9000  ·  the app server is not in this path',
-                     TRACK_X0 + 28, TRACK_Y - 17, 10.5, BONE),
-        nodes=(node(*BR, name='BROWSER', sub='plain js, no build')
-               + node(*PA, name=NAME, sub='single go binary', accent=True)
-               + node(*PG, name='POSTGRES', sub='metadata')
-               + node(*MI, name='MINIO', sub='s3 multipart')),
-        p_ask=packets('tAsk', 1.3), p_rep=packets('tRep', 1.4, n=2, col=DIM, size=5),
-        p_meta=packets('tMeta', 1.5, n=2), p_pre=packets('tPre', 1.5, n=2),
-        p_data=packets('tData', 2.4, n=5, size=8, col=BONE),
-        bx1=bx - 7, bx2=bx + 7, by1=by - 7, by2=by + 7,
-        l_brk=label('connection lost  ·  part 76 / 200', bx - 6, by + 20, 10, MADDER),
-        l_done=label('100 GB stored  ·  200 / 200 parts', TRACK_X1 - 16, TRACK_Y - 17,
-                     10, VERD, 'end'),
-        caps=cap_g, pips=pips)
+    # ---- counters, as odometers
+    body.append('<line x1="48" y1="326" x2="1000" y2="326" stroke="%s" stroke-opacity=".12"/>' % c['rule'])
+    DS, DH = 30, 38                                  # digit size, wheel pitch
+    clips = []
+    adv = width('0', DS, track=0)
+    digits = ''.join('<path id="dg%d" d="%s"/>' % (k, T.typeset(MONO, str(k), DS, 0, 0)[0]) for k in range(10))
+
+    def wheel(name, x, y, events, col, final):
+        marks, cur = [(0.0, 0)], 0
+        for t, dg in events:
+            if dg != cur:
+                marks += [(t - 0.004, cur), (t, dg)]
+                cur = dg
+        marks += [(RESET1 - 0.004, cur), (RESET1, 0), (D, 0)]
+        css.append('@keyframes %s{%s}' % (name, ''.join(
+            '%s{transform:translateY(%dpx)}' % (pct(t), -dg * DH) for t, dg in marks)))
+        top = y - DS * 0.78
+        clips.append('<clipPath id="k%s"><rect x="%.1f" y="%.1f" width="%.1f" height="%d"/></clipPath>'
+                     % (name, x, top - 2, adv + 1, DH - 4))
+        return ('<g clip-path="url(#k%s)"><g class="a" style="animation:%s %ss linear infinite;'
+                'transform:translateY(%dpx)" fill="%s">%s</g></g>'
+                % (name, name, D, -final * DH, col,
+                   ''.join('<use href="#dg%d" x="%.1f" y="%.1f"/>' % (k, x, y + k * DH) for k in range(10))))
+
+    def counter(x, label, wheels, suffix, col=None):
+        out = [text(label, x, 346, 9, c['muted'], track=0.16)]
+        wx = x
+        for name, events, final in wheels:
+            out.append(wheel(name, wx, 384, events, col or c['text'], final))
+            wx += adv
+        if suffix:
+            out.append(text(suffix, wx + 4, 384, 15, c['muted'], track=0.06))
+        return ''.join(out)
+
+    pe = [(t_part(n), n) for n in range(1, PARTS + 1)]
+    body.append(counter(48, 'PARTS STORED', [
+        ('wP2', [(t, n // 100) for t, n in pe], 2),
+        ('wP1', [(t, (n // 10) % 10) for t, n in pe], 0),
+        ('wP0', [(t, n % 10) for t, n in pe], 0)], '/ 200'))
+    body.append(counter(286, 'GIGABYTES', [
+        ('wG2', [(t, (n // 2) // 100) for t, n in pe], 1),
+        ('wG1', [(t, ((n // 2) // 10) % 10) for t, n in pe], 0),
+        ('wG0', [(t, (n // 2) % 10) for t, n in pe], 0)], 'GB'))
+    body.append(counter(524, 'RESTARTS FROM ZERO', [('wR0', [], 0)], '', c['verd']))
+    body.append(counter(762, 'BYTES THROUGH THE GO BINARY', [('wB0', [], 0)], 'B', c['verd']))
+
+    # ---- the runner
+    body.append(text('MINIO BUCKET  ·  200 PARTS × 512 MB  ·  EACH ONE KNOTTED IN AS IT LANDS',
+                     48, 424, 9, c['muted'], track=0.14))
+    body.append(text('RESUMES FROM THE LAST PART', 1000, 424, 9, c['dim'], track=0.14, anchor='end'))
+    rw, rh = COLS * STEP - (STEP - CELL), ROWS * STEP - (STEP - CELL)
+    # warp threads at both ends, as on a real loom
+    for side in (-1, 1):
+        x0 = GX - 3 if side < 0 else GX + rw + 3
+        for r in range(ROWS * 2):
+            y = GY + 4 + r * (rh - 8) / (ROWS * 2 - 1)
+            body.append('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-opacity=".5"/>'
+                        % (x0, y, x0 + side * (7 + 3 * ((r * 7) % 3)), y, c['dim']))
+    for n in range(1, PARTS + 1):
+        x, y = cell_xy(n)
+        body.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="2" fill="%s" stroke="%s"/>'
+                    % (x, y, CELL, CELL, c['slot'], c['slot_line']))
+    for n in range(1, PARTS + 1):
+        x, y = cell_xy(n)
+        i = n - 1
+        css.append(keep('n%d' % n, t_part(n), fade=0.12))
+        body.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="2" fill="%s" class="a" '
+                    'style="animation:n%d %ss linear infinite"/>'
+                    % (x, y, CELL, CELL, motif(i // ROWS, i % ROWS), n, D))
+    # every cell is three knots by three, as if woven
+    kn = (CELL - 1.0) / 3
+    body.append('<pattern id="knots" x="%.1f" y="%.1f" width="%.1f" height="%.1f" patternUnits="userSpaceOnUse">'
+                '%s</pattern>' % (GX, GY, STEP, STEP, ''.join(
+                    '<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" rx="1.6" fill="url(#dome)"/>'
+                    % (0.5 + i * kn, 0.5 + j * kn, kn - 0.6, kn - 0.6) for i in range(3) for j in range(3))))
+    body.append('<radialGradient id="dome" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fff" '
+                'stop-opacity=".16"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/>'
+                '<stop offset="1" stop-color="#000" stop-opacity=".38"/></radialGradient>')
+    body.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="url(#knots)" pointer-events="none"/>'
+                % (GX, GY, rw, rh))
+    # the parts in flight when the network went
+    lost = ''.join('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="2" fill="none" stroke="%s" '
+                   'stroke-width="2"/>' % (cell_xy(n) + (CELL, CELL, c['madder'])) for n in (77, 78, 79))
+    body.append('<g class="a t" style="animation:gDrop %ss linear infinite"><g class="a" '
+                'style="animation:blink .8s steps(1) infinite">%s</g></g>' % (D, lost))
+    # ListParts checks what landed
+    scan_x1 = GX + ((LOST_AT - 1) // ROWS) * STEP
+    css.append('@keyframes scan{0%%{transform:translateX(0);opacity:0}%s{transform:translateX(0);opacity:0}'
+               '%s{opacity:.9}%s{transform:translateX(%.1fpx);opacity:.9}%s{transform:translateX(%.1fpx);opacity:0}'
+               '100%%{opacity:0;transform:translateX(%.1fpx)}}'
+               % (pct(LIST + 0.6), pct(LIST + 0.7), pct(LIST + 1.7), scan_x1 - GX, pct(LIST + 1.85),
+                  scan_x1 - GX, scan_x1 - GX))
+    body.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="none" stroke="%s" stroke-width="2" '
+                'rx="2" class="a t" style="animation:scan %ss linear infinite"/>'
+                % (GX - 2, GY - 2, CELL + 4, rh + 4, c['verd'], D))
+    # the shuttle rides the edge of the weave
+    sx = [(0.0, 0), (P1[0], 0), (P1[1], LOST_AT), (P2[0], LOST_AT), (P2[1], PARTS), (RESET1, PARTS), (D, 0)]
+
+    def shuttle_x(n):
+        return n / ROWS * STEP - (STEP - CELL) / 2 if n else -4
+
+    css.append('@keyframes shuttle{%s}' % ''.join(
+        '%s{transform:translateX(%.1fpx)}' % (pct(t), shuttle_x(n)) for t, n in sx))
+    css.append(gate('gShut', [(P1[0], DONE)], fade=0.2))
+    body.append('<g class="a t" style="animation:gShut %ss linear infinite"><rect x="%.1f" y="%.1f" width="2" '
+                'height="%.1f" rx="1" fill="%s" class="a" style="animation:shuttle %ss linear infinite"/></g>'
+                % (D, GX, GY - 6, rh + 12, c['madder'], D))
+    # done: the whole gul shows
+    css.append('@keyframes glow{0%%{opacity:0}%s{opacity:0}%s{opacity:.28}%s{opacity:0}100%%{opacity:0}}'
+               % (pct(DONE + 0.5), pct(DONE + 0.9), pct(DONE + 1.8)))
+    body.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="3" fill="%s" class="a t" '
+                'style="animation:glow %ss linear infinite"/>' % (GX - 2, GY - 2, rw + 4, rh + 4, IVORY, D))
+
+    # ---- what is happening, and when
+    caps = [
+        (0.2, P1[0], 'Paýlaş records the upload, opens it in MinIO and hands the browser presigned part URLs.'),
+        (P1[0], DROP, 'Parts go straight from the browser to MinIO on :9000. The Go binary never touches a byte.'),
+        (DROP, LIST, 'The network drops at part 77. Only the part in flight is lost.'),
+        (LIST, P2[0], 'The browser asks which parts landed. MinIO says 76.'),
+        (P2[0], DONE, 'The weave picks up at part 77. No restart, nothing sent twice.'),
+        (DONE, RESET0, 'MinIO stitches 200 parts into one 100 GB object. The app server carried none of it.'),
+    ]
+    for i, (a, b, s) in enumerate(caps):
+        css.append(gate('gC%d' % i, [(a, b)], fade=0.2))
+        last = i == len(caps) - 1
+        body.append('<g class="a%s" style="animation:gC%d %ss linear infinite">%s%s</g>' % (
+            '' if last else ' t', i, D, text('0%d' % (i + 1), 48, 586, 11, c['madder']),
+            text(s, 80, 586, 15, c['text'], BODY, 0)))
+
+    marks = [(0.0, 'START'), (P1[0], 'UPLOAD'), (DROP, 'DROP'), (LIST, 'CHECK'), (P2[0], 'RESUME'), (DONE, 'DONE')]
+    body.append('<line x1="48" y1="608" x2="1000" y2="608" stroke="%s" stroke-opacity=".18"/>' % c['rule'])
+    for t, s in marks:
+        x = 48 + t / D * 952
+        body.append('<line x1="%.1f" y1="604" x2="%.1f" y2="612" stroke="%s" stroke-opacity=".35"/>'
+                    % (x, x, c['rule']))
+        body.append(text(s, x + 4, 626, 8.5, c['madder'] if s == 'DROP' else c['dim'], track=0.16))
+    css.append('@keyframes play{from{transform:translateX(0)}to{transform:translateX(952px)}}')
+    body.append('<circle cx="48" cy="608" r="4" fill="%s" class="a t" style="animation:play %ss linear infinite"/>'
+                % (c['madder'], D))
+
+    css.append('.a{animation-iteration-count:infinite}')
+    css.append('@media (prefers-reduced-motion:reduce){.a{animation:none!important}.t{display:none}}')
+
+    label = ('How a 100 GB upload moves through Paylas. The browser asks the Go binary to start it; '
+             'the binary records it in Postgres and opens a presigned multipart upload in MinIO. The browser '
+             'sends 200 parts straight to MinIO, each woven into a runner as it lands. The network drops after '
+             'part 76; the browser asks which parts landed and resumes at part 77, so nothing restarts and '
+             'no byte passes through the app server.')
+
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
+            'role="img" aria-label="{label}"><title>{label}</title><style>{css}</style>'
+            '<defs>{digits}{clips}{glyphs}</defs><rect width="{W}" height="{H}" rx="6" fill="{ink}"/>{body}</svg>\n'
+            ).format(W=W, H=H, label=label, css=''.join(css), digits=digits, ink=c['ink'], body=''.join(body),
+                     clips=''.join(clips), glyphs=glyph_defs())
 
 
 if __name__ == '__main__':
-    open('out/upload-path.svg', 'w', encoding='utf-8').write(build())
-    print('drawn -> out/upload-path.svg')
+    import os
+    os.makedirs('out', exist_ok=True)
+    for theme in THEMES:
+        path = 'out/upload-path-%s.svg' % theme
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(build(theme))
+        print('drawn ->', path)
