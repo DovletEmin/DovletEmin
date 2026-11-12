@@ -22,9 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: DovletEmin/haly@v1
+      - uses: DovletEmin/haly@v1.1.0
         with:
           outputs: assets/carpet.svg
+          style: tekke                # Ashgabat sits in Tekke country
+          inscription: 'Dovlet Eminov · {year}'
           # A classic PAT with read:user also counts private contributions.
           # Without the secret, the default token weaves public ones.
           github_token: ${{ secrets.WEAVE_TOKEN || github.token }}
