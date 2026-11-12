@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: DovletEmin/haly@v1.1.0
+      - uses: DovletEmin/haly@v1
         with:
           outputs: assets/carpet.svg
           style: tekke                # Ashgabat sits in Tekke country
