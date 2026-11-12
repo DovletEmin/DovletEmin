@@ -1,7 +1,9 @@
 name: Weave the carpet
 
-# Reweaves assets/carpet.svg from the live contribution calendar.
-# Each knot is one day; the dye scale is recomputed from the real distribution.
+# Reweaves assets/carpet.svg from the live contribution calendar with Haly
+# (https://github.com/DovletEmin/haly). One gul per day; the dye levels are
+# recomputed from the real distribution. Identical data gives a byte-identical
+# file, so a quiet day commits nothing.
 
 on:
   schedule:
@@ -9,7 +11,6 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'assets/src/**'
       - '.github/workflows/weave.yml'
 
 permissions:
@@ -21,48 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: DovletEmin/haly@v1
         with:
-          python-version: '3.12'
-
-      - name: Install fonttools
-        run: pip install --quiet fonttools
-
-      - name: Fetch the typefaces
-        working-directory: assets/src
-        run: |
-          mkdir -p fonts
-          curl -sSLf -o fonts/Archivo-var.ttf \
-            'https://raw.githubusercontent.com/google/fonts/main/ofl/archivo/Archivo%5Bwdth%2Cwght%5D.ttf'
-          curl -sSLf -o fonts/IBMPlexMono-Medium.ttf \
-            'https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/IBMPlexMono-Medium.ttf'
-
-      - name: Read the contribution calendar
-        working-directory: assets/src
-        env:
-          # A classic PAT with read:user is the reliable path. Without the
-          # secret this falls back to GITHUB_TOKEN, which may return nothing.
-          GH_TOKEN: ${{ secrets.WEAVE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          gh api graphql -F login="${{ github.repository_owner }}" -f query='
-            query($login: String!) {
-              user(login: $login) {
-                contributionsCollection {
-                  totalCommitContributions
-                  totalRepositoriesWithContributedCommits
-                  contributionCalendar {
-                    totalContributions
-                    weeks { contributionDays { date contributionCount } }
-                  }
-                }
-              }
-            }' > contrib.json
-          python -c "import json,sys; d=json.load(open('contrib.json'))['data']['user']; \
-            sys.exit('empty calendar' if not d['contributionsCollection']['contributionCalendar']['totalContributions'] else 0)"
-
-      - name: Weave
-        working-directory: assets/src
-        run: python carpet.py contrib.json ../carpet.svg
+          outputs: assets/carpet.svg
+          # A classic PAT with read:user also counts private contributions.
+          # Without the secret, the default token weaves public ones.
+          github_token: ${{ secrets.WEAVE_TOKEN || github.token }}
 
       - name: Commit if the weave changed
         run: |

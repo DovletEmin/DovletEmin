@@ -1,14 +1,18 @@
 # Sources for the generated artwork
 
-Three generators, one shared typesetter. All text is converted to vector
+Two generators, one shared typesetter. All text is converted to vector
 outlines, so every piece renders identically everywhere and depends on no
 installed fonts.
 
 | Script | Produces | Notes |
 |:--|:--|:--|
 | `banner.py` | `header-dark.svg`, `header-light.svg` | Profile header. The lattice is an abstracted Turkmen gul that doubles as a network topology. |
-| `carpet.py` | `carpet.svg` | The contribution year woven as a Tekke carpet: field, guards, border, elem, kilim, fringe, with wool pile and abrash done in SVG filters. Rebuilt daily by the weave workflow. Also published as the [Haly](https://github.com/DovletEmin/haly) action. |
 | `flow.py` | `upload-path.svg` | Animated walkthrough of the Paylas upload path. |
+
+`carpet.svg` is not built here. The weave workflow rebuilds it every morning
+with [Haly](https://github.com/DovletEmin/haly), the action this carpet grew
+into: the contribution year as a Tekke rug, with wool pile and abrash done in
+SVG filters.
 
 ## Running them
 
@@ -21,22 +25,7 @@ cd ..
 
 python banner.py                       # -> out/header-{dark,light}.svg
 python flow.py                         # -> out/upload-path.svg
-python carpet.py contrib.json out/carpet.svg
 ```
-
-`carpet.py` needs a contribution calendar in `contrib.json`. The workflow
-fetches it; to do it by hand:
-
-```bash
-gh api graphql -f query='{ user(login: "DovletEmin") { contributionsCollection {
-  totalCommitContributions totalRepositoriesWithContributedCommits
-  contributionCalendar { totalContributions
-    weeks { contributionDays { date contributionCount } } } } } }' > contrib.json
-```
-
-Every random-looking variation in the carpet is seeded from knot coordinates,
-so the same calendar always yields byte-identical output and the daily
-workflow never commits noise.
 
 Both typefaces are under the SIL Open Font License. Edit the strings in a
 script, rerun it, and copy the result over the file in `assets/`.
@@ -45,11 +34,12 @@ script, rerun it, and copy the result over the file in `assets/`.
 
 The weave workflow commits a rebuilt carpet whenever it runs, so a push of
 your own can land behind it. The file is generated, so never merge it by
-hand. Rerun the generator and commit that:
+hand. Take the remote copy and let the next run rebuild it:
 
 ```bash
-python carpet.py contrib.json ../carpet.svg
-git add ../carpet.svg && git commit
+git checkout origin/main -- assets/carpet.svg
+git add assets/carpet.svg
 ```
 
-Pulling with `git pull --rebase` before you start work avoids most of it.
+Or run the workflow from the Actions tab once you have pushed. Pulling with
+`git pull --rebase` before you start work avoids most of it.
